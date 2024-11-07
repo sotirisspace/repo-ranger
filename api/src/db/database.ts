@@ -7,6 +7,7 @@ import { TwitterPost } from '@models/twitter-posts.model';
 import { Repo } from '@models/repos.model';
 import { JobState } from '@models/job.model';
 import { GithubEvent } from '@models/github-events.model';
+import { Commit } from '@models/commits.model';
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
@@ -15,7 +16,7 @@ export const AppDataSource = new DataSource({
   username: process.env.MYSQLUSER || 'root',
   password: process.env.DB_PASSWORD || 'password',
   database: process.env.MYSQL_DATABASE || 'repo-ranger',
-  entities: [Username, ChatMessage, TwitterPost, Repo, JobState, GithubEvent],
+  entities: [Username, ChatMessage, TwitterPost, Repo, JobState, GithubEvent, Commit],
   synchronize: true,
   logging: false,
 });

@@ -11,6 +11,8 @@ import usernameService from '@services/username.service';
 import { logger } from '@utils/utils';
 import { Job } from 'agenda';
 import { GithubEvent } from '@Itypes/events.interface';
+import commitsService from '@services/commits.service';
+import { Commit } from '@models/commits.model';
 
 const refreshUsernames = async (job: Job) => {
   const lastJobId = await getLastUserId();
@@ -74,6 +76,7 @@ async function processUser(user: Username, job: Job) {
 
   await processEvents(events, updatedUsername);
   await saveRepos(reposData, updatedUsername);
+  await saveCommits(commits, updatedUsername);
 
   logger('info', `User ${updatedUsername.username} updated`);
 }
@@ -178,6 +181,19 @@ async function saveRepos(reposData: GithubRepo[], updatedUsername: Username) {
     return newRepo;
   });
   await reposService.createMultipleRepos(reposToSave);
+}
+
+async function saveCommits(commitsData: GithubUserCommits[], updatedUsername: Username) {
+  const commitToSave = commitsData.map((commit) => {
+    const newCommit = new Commit();
+    newCommit.username_id = updatedUsername.id;
+    newCommit.created_at = new Date();
+    newCommit.github_sha = commit.sha;
+    newCommit.github_url = commit.html_url;
+    newCommit.message = commit.commit.message;
+    return newCommit;
+  });
+  await commitsService.createMultipleCommits(commitToSave);
 }
 
 async function updateJobState() {
