@@ -69,14 +69,15 @@ function shouldSkipUser(user: Username) {
 
 async function processUser(user: Username, job: Job) {
   const { reposData, commits, pullRequests, userData, favLanguage, events } = await fetchGithubData(user.username);
-  const score = await scoreService.calculateScore({ reposData, commits, pullRequests });
+  await saveCommits(commits, user);
+  const allCommits = await commitsService.getCommitsByUsernameId(user.id);
+  const score = await scoreService.calculateScore({ reposData, commits: allCommits, pullRequests });
   const aiData = await generateAiData(user);
   const updatedUsername = await updateUsername(user, userData, score, favLanguage, aiData);
   await job.save();
 
   await processEvents(events, updatedUsername);
   await saveRepos(reposData, updatedUsername);
-  await saveCommits(commits, updatedUsername);
 
   logger('info', `User ${updatedUsername.username} updated`);
 }

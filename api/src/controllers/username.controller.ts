@@ -223,9 +223,23 @@ const refreshUsername = asyncFn(async (req: Request, res: Response, _next: NextF
   const userData = await githubService.getGithubUserInformation(username.username);
   const favLanguage = await githubService.getGithubUserFavLanguage(reposData);
   const events = await githubService.getGithubUserEvents(username.username);
+
+  const commitsToSave = commits.map((commit) => {
+    const newCommit = new Commit();
+    newCommit.username_id = username.id;
+    newCommit.created_at = new Date();
+    newCommit.github_sha = commit.sha;
+    newCommit.github_url = commit.html_url;
+    newCommit.message = commit.commit.message;
+    return newCommit;
+  });
+  await commitsService.createMultipleCommits(commitsToSave);
+
+  const allCommits = await commitsService.getCommitsByUsernameId(username.id);
+
   const score = await scoreService.calculateScore({
     reposData,
-    commits,
+    commits: allCommits,
     pullRequests,
   });
   const ai_description = username.ai_description ? username.ai_description : await aiService.generateAiDescription(username);
