@@ -11,6 +11,8 @@ import usernameService from '@services/username.service';
 import { logger } from '@utils/utils';
 import { Job } from 'agenda';
 import { GithubEvent } from '@Itypes/events.interface';
+import commitsService from '@services/commits.service';
+import { Commit } from '@models/commits.model';
 
 const refreshUsernames = async (job: Job) => {
   const lastJobId = await getLastUserId();
@@ -67,7 +69,9 @@ function shouldSkipUser(user: Username) {
 
 async function processUser(user: Username, job: Job) {
   const { reposData, commits, pullRequests, userData, favLanguage, events } = await fetchGithubData(user.username);
-  const score = await scoreService.calculateScore({ reposData, commits, pullRequests });
+  await saveCommits(commits, user);
+  const allCommits = await commitsService.getCommitsByUsernameId(user.id);
+  const score = await scoreService.calculateScore({ reposData, commits: allCommits, pullRequests });
   const aiData = await generateAiData(user);
   const updatedUsername = await updateUsername(user, userData, score, favLanguage, aiData);
   await job.save();
@@ -178,6 +182,19 @@ async function saveRepos(reposData: GithubRepo[], updatedUsername: Username) {
     return newRepo;
   });
   await reposService.createMultipleRepos(reposToSave);
+}
+
+async function saveCommits(commitsData: GithubUserCommits[], updatedUsername: Username) {
+  const commitToSave = commitsData.map((commit) => {
+    const newCommit = new Commit();
+    newCommit.username_id = updatedUsername.id;
+    newCommit.created_at = new Date();
+    newCommit.github_sha = commit.sha;
+    newCommit.github_url = commit.html_url;
+    newCommit.message = commit.commit.message;
+    return newCommit;
+  });
+  await commitsService.createMultipleCommits(commitToSave);
 }
 
 async function updateJobState() {

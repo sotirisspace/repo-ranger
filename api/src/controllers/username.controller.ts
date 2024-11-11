@@ -10,6 +10,8 @@ import eventsService from '@services/events.service';
 import { GithubEvent } from '@models/github-events.model';
 import { Repo } from '@models/repos.model';
 import reposService from '@services/repos.service';
+import { Commit } from '@models/commits.model';
+import commitsService from '@services/commits.service';
 
 const getTrendingUsers = asyncFn(async (_req: Request, res: Response, _next: NextFunction) => {
   const trendingUsers = await usernameService.getTrendingUsers();
@@ -78,6 +80,19 @@ const createUsername = asyncFn(async (req: Request, res: Response, _next: NextFu
     return newRepo;
   });
   await reposService.createMultipleRepos(reposToSave);
+
+  // save commits
+  const commitsToSave = commits.map((commit) => {
+    const newCommit = new Commit();
+    newCommit.username_id = savedUsername.id;
+    newCommit.created_at = new Date();
+    newCommit.github_sha = commit.sha;
+    newCommit.github_url = commit.html_url;
+    newCommit.message = commit.commit.message;
+    return newCommit;
+  });
+
+  await commitsService.createMultipleCommits(commitsToSave);
 
   resFn(res, {
     status: 200,
@@ -208,9 +223,23 @@ const refreshUsername = asyncFn(async (req: Request, res: Response, _next: NextF
   const userData = await githubService.getGithubUserInformation(username.username);
   const favLanguage = await githubService.getGithubUserFavLanguage(reposData);
   const events = await githubService.getGithubUserEvents(username.username);
+
+  const commitsToSave = commits.map((commit) => {
+    const newCommit = new Commit();
+    newCommit.username_id = username.id;
+    newCommit.created_at = new Date();
+    newCommit.github_sha = commit.sha;
+    newCommit.github_url = commit.html_url;
+    newCommit.message = commit.commit.message;
+    return newCommit;
+  });
+  await commitsService.createMultipleCommits(commitsToSave);
+
+  const allCommits = await commitsService.getCommitsByUsernameId(username.id);
+
   const score = await scoreService.calculateScore({
     reposData,
-    commits,
+    commits: allCommits,
     pullRequests,
   });
   const ai_description = username.ai_description ? username.ai_description : await aiService.generateAiDescription(username);
